@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -16,8 +16,9 @@ func main() {
     }
     defer conn.Close()
     fmt.Println("Successfully connected to rabbitmq server")
-    sigChan := make(chan os.Signal, 1)
-    signal.Notify(sigChan, os.Interrupt)
-    <-sigChan
-    fmt.Println("Shutting down...")
+    sigChan, err := conn.Channel()
+    if err != nil {
+        panic(err)
+    }
+    pubsub.PublishJSON(sigChan,routing.ExchangePerilDirect,routing.PauseKey,routing.PlayingState{IsPaused: true})
 }
