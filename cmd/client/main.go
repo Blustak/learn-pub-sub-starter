@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -39,11 +37,47 @@ func main() {
         panic(err)
     }
     defer psChan.Close()
+    gameState := gamelogic.NewGameState(welcomeRes)
     fmt.Printf("Queue %s created. \n", psQueue.Name)
 
-    //Wait for ctrl+c
-    stdinChan := make(chan os.Signal, 1)
-    signal.Notify(stdinChan,os.Interrupt)
-    <-stdinChan
+    for {
+        if ok := handleLoop(gameState); !ok {
+            break
+        }
+    }
     fmt.Println("Shutting down...")
+}
+
+func handleLoop(gs *gamelogic.GameState) bool {
+    words := gamelogic.GetInput()
+    // Returns false when exit command is given
+    for _, w := range words {
+    switch w {
+        case "quit":
+            gamelogic.PrintQuit()
+            return false
+        case "spawn":
+            if err := gs.CommandSpawn(words); err != nil {
+                fmt.Println("Bad spawn command")
+            }
+            return true
+        case "move":
+            _,err := gs.CommandMove(words)
+            if err != nil {
+                fmt.Println("Command failed")
+            } else {
+                fmt.Println("Command successful")
+            }
+            return true
+        case "status":
+            gs.CommandStatus()
+        case "help":
+            gamelogic.PrintClientHelp()
+        case "spam":
+            fmt.Println("Spamming is not allowed yet!")
+        default:
+            fmt.Println("Unrecognised command")
+        }
+    }
+    return true
 }

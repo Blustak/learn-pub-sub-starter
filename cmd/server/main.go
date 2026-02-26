@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -20,5 +21,24 @@ func main() {
     if err != nil {
         panic(err)
     }
-    pubsub.PublishJSON(sigChan,routing.ExchangePerilDirect,routing.PauseKey,routing.PlayingState{IsPaused: true})
+    gamelogic.PrintServerHelp()
+    running := true
+    for running {
+        words := gamelogic.GetInput()
+        for _,w := range words {
+            switch w {
+            case "pause":
+                fmt.Println("Pausing game...")
+                pubsub.PublishJSON(sigChan,routing.ExchangePerilDirect,routing.PauseKey,routing.PlayingState{IsPaused: true})
+            case "resume":
+                fmt.Println("Resuming game...")
+                pubsub.PublishJSON(sigChan,routing.ExchangePerilDirect,routing.PauseKey,routing.PlayingState{IsPaused: false})
+            case "quit":
+                fmt.Println("Exiting...")
+                running = false
+            default:
+                fmt.Printf("Unkown command %s\n", w)
+            }
+        }
+    }
 }
