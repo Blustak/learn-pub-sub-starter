@@ -22,16 +22,32 @@ func main() {
     }
     defer rabbitmqChannel.Close()
 
-    welcomeRes, err := gamelogic.ClientWelcome()
+
+    userName, err := gamelogic.ClientWelcome()
     if err != nil {
         panic(err)
     }
-    gameState := gamelogic.NewGameState(welcomeRes)
+    //Bind a moves queue
+    gameState := gamelogic.NewGameState(userName)
+    if err = pubsub.SubscribeJSON[gamelogic.ArmyMove](
+        conn,
+        "peril_topic",
+        "army_moves." + userName,
+        "army_moves.*",
+        pubsub.Transient,
+        func (mv gamelogic.ArmyMove) {
+            defer fmt.Println("> ")
+            gameState.HandleMove(mv)
+        },
+
+    ); err != nil {
+        panic(err)
+    }
 
     pubsub.SubscribeJSON(
         conn,
         routing.ExchangePerilDirect,
-        "pause."+welcomeRes,
+        "pause."+userName,
         routing.PauseKey,
         pubsub.Transient,
         handlePause(gameState),
@@ -39,14 +55,14 @@ func main() {
 
 
     for {
-        if ok := handleLoop(gameState); !ok {
+        if ok := handleLoop(gameState,rabbitmqChannel,userName); !ok {
             break
         }
     }
     fmt.Println("Shutting down...")
 }
 
-func handleLoop(gs *gamelogic.GameState) bool {
+func handleLoop(gs *gamelogic.GameState, ch *amqp.Channel, name  string) bool {
     words := gamelogic.GetInput()
     // Returns false when exit command is given
     for _, w := range words {
@@ -60,12 +76,16 @@ func handleLoop(gs *gamelogic.GameState) bool {
             }
             return true
         case "move":
-            _,err := gs.CommandMove(words)
+            mv,err := gs.CommandMove(words)
             if err != nil {
                 fmt.Println("Command failed")
-            } else {
-                fmt.Println("Command successful")
+                return true
             }
+            if err := pubsub.PublishJSON(ch,"peril_topic","army_moves." + name,mv); err != nil {
+                fmt.Printf("error publishing move:%s\n", err)
+                return true
+            }
+
             return true
         case "status":
             gs.CommandStatus()
