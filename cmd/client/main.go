@@ -26,19 +26,17 @@ func main() {
     if err != nil {
         panic(err)
     }
-    psChan,psQueue,err := pubsub.DeclareAndBind(
+    gameState := gamelogic.NewGameState(welcomeRes)
+
+    pubsub.SubscribeJSON(
         conn,
         routing.ExchangePerilDirect,
-        routing.PauseKey + "." + welcomeRes,
+        "pause."+welcomeRes,
         routing.PauseKey,
         pubsub.Transient,
+        handlePause(gameState),
     )
-    if err != nil {
-        panic(err)
-    }
-    defer psChan.Close()
-    gameState := gamelogic.NewGameState(welcomeRes)
-    fmt.Printf("Queue %s created. \n", psQueue.Name)
+
 
     for {
         if ok := handleLoop(gameState); !ok {
@@ -80,4 +78,11 @@ func handleLoop(gs *gamelogic.GameState) bool {
         }
     }
     return true
+}
+
+func handlePause(gs *gamelogic.GameState) func(routing.PlayingState) {
+    return func(r routing.PlayingState){
+        defer fmt.Print("> ")
+        gs.HandlePause(r)
+    }
 }
