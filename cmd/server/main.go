@@ -16,7 +16,17 @@ func main() {
         panic(err)
     }
     defer conn.Close()
+
     fmt.Println("Successfully connected to rabbitmq server")
+    _, _, err = pubsub.DeclareAndBind(conn,
+        "peril_topic",
+        "game_logs",
+        "game_logs.*",
+        pubsub.Durable,
+    )
+    if err != nil {
+        panic(err)
+    }
     sigChan, err := conn.Channel()
     if err != nil {
         panic(err)
