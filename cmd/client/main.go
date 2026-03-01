@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -72,7 +73,7 @@ func main() {
 func handleLoop(gs *gamelogic.GameState, ch *amqp.Channel, name string) bool {
 	words := gamelogic.GetInput()
 	// Returns false when exit command is given
-	for _, w := range words {
+	for i, w := range words {
 		switch w {
 		case "quit":
 			gamelogic.PrintQuit()
@@ -96,12 +97,32 @@ func handleLoop(gs *gamelogic.GameState, ch *amqp.Channel, name string) bool {
 			return true
 		case "status":
 			gs.CommandStatus()
+            return true
 		case "help":
 			gamelogic.PrintClientHelp()
+            return true
 		case "spam":
-			fmt.Println("Spamming is not allowed yet!")
+            args := words[i+1:]
+            if len(args) < 1 {
+                fmt.Println("spam requires an argument")
+                return true
+            }
+            n, err := strconv.ParseInt(args[0], 10, 0)
+            if err != nil {
+                fmt.Printf("couldn't parse %s as an int.", args[0])
+                return true
+            }
+            for x := int64(0); x < n; x+=1 {
+                malLog := gamelogic.GetMaliciousLog()
+                publishGameLog(ch,routing.GameLog{
+                    Message: malLog,
+                    Username: gs.GetUsername(),
+                })
+            }
+            return true
 		default:
 			fmt.Println("Unrecognised command")
+            return true
 		}
 	}
 	return true
