@@ -35,9 +35,15 @@ func main() {
         "army_moves." + userName,
         "army_moves.*",
         pubsub.Transient,
-        func (mv gamelogic.ArmyMove) {
+        func (mv gamelogic.ArmyMove) pubsub.SimpleAckType {
             defer fmt.Println("> ")
-            gameState.HandleMove(mv)
+            mvOutcome := gameState.HandleMove(mv)
+            switch mvOutcome  {
+            case gamelogic.MoveOutComeSafe, gamelogic.MoveOutcomeMakeWar:
+                return pubsub.SimpleAckType(pubsub.Ack)
+            default:
+                return pubsub.SimpleAckType(pubsub.NackDiscard)
+            }
         },
 
     ); err != nil {
@@ -100,9 +106,10 @@ func handleLoop(gs *gamelogic.GameState, ch *amqp.Channel, name  string) bool {
     return true
 }
 
-func handlePause(gs *gamelogic.GameState) func(routing.PlayingState) {
-    return func(r routing.PlayingState){
+func handlePause(gs *gamelogic.GameState) func(routing.PlayingState) pubsub.SimpleAckType {
+    return func(r routing.PlayingState) pubsub.SimpleAckType {
         defer fmt.Print("> ")
         gs.HandlePause(r)
+        return pubsub.SimpleAckType(pubsub.Ack)
     }
 }
