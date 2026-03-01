@@ -23,23 +23,6 @@ const (
     NackDiscard
 )
 
-func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
-    valJSON, err := json.Marshal(val)
-    if err != nil {
-        return err
-    }
-    return ch.PublishWithContext(
-        context.Background(),
-        exchange,
-        key,
-        false,
-        false,
-        amqp.Publishing{
-            ContentType: "application/json",
-            Body:   valJSON,
-        },
-    )
-}
 
 func DeclareAndBind(
     conn *amqp.Connection,
@@ -70,6 +53,24 @@ func DeclareAndBind(
         return nil, queue, err
     }
     return connectionChannel, queue, nil
+}
+
+func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
+    valJSON, err := json.Marshal(val)
+    if err != nil {
+        return err
+    }
+    return ch.PublishWithContext(
+        context.Background(),
+        exchange,
+        key,
+        false,
+        false,
+        amqp.Publishing{
+            ContentType: "application/json",
+            Body:   valJSON,
+        },
+    )
 }
 
 func SubscribeJSON[T any](
